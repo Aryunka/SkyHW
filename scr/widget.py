@@ -8,15 +8,15 @@ def mask_account_card(type_card_number: str) -> str:
     numbers_str = ""
     type_str = ""
     for i in type_card_number:
-        if i.isalpha():
+        if i.isalpha() or i.isspace():
             type_str += i
         elif i.isdigit():
             numbers_str += i
     if type_card_number[-18:].isdigit():
-        mask_card = type_str + " " + get_mask_account(numbers_str)
+        mask_card = type_str + get_mask_account(numbers_str)
         return mask_card
     else:
-        mask_account = type_str + " " + get_mask_card_number(numbers_str)
+        mask_account = type_str + get_mask_card_number(numbers_str)
         return mask_account
 
 
