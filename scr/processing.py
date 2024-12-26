@@ -12,7 +12,7 @@ def filter_by_state(data: list[dict], state: str = "EXECUTED") -> list[dict]:
 def sort_by_date(data: list[dict], descending: bool = True) -> list[dict]:
     """
     Функция, которая сортирует список словарей
-    и возвращать новый список, отсортированный по дате
+    и возвращает новый список, отсортированный по дате
     """
 
     def get_datetime(item: dict) -> datetime:
