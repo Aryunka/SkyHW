@@ -31,3 +31,8 @@ def test_sort_by_date(fix_list: list[dict]) -> None:
         {"id": 594226727, "state": "CANCELED", "date": "2018-09-12T21:27:25.241689"},
         {"id": 939719570, "state": "EXECUTED", "date": "2018-06-30T02:08:58.425572"},
     ]
+
+
+def test_sort_by_date_invalid() -> None:
+    with pytest.raises(TypeError):
+        test_sort_by_date("1234")
