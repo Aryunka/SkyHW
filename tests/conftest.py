@@ -60,3 +60,10 @@ def transactions() -> list[dict]:
             "to": "Счет 14211924144426031657",
         },
     ]
+
+
+@pytest.fixture
+def test_file(tmp_path):
+    file_path = tmp_path / "test.log"
+    yield str(file_path)
+    file_path.unlink(missing_ok=True)
