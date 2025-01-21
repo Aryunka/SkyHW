@@ -4,7 +4,7 @@ from typing import Any, Callable, Optional
 
 
 def log(filename: Optional[str] = None) -> Callable[[Callable], Callable]:
-    """ """
+    """Декоратор, автоматически логирующий начало и конец выполнения функции, ее результаты или возникшие ошибки."""
 
     def decorator(func: Callable) -> Callable:
         def wrapper(*args: Any, **kwargs: Any) -> Any:
