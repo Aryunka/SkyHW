@@ -1,8 +1,10 @@
 import os
+
 import requests
 from dotenv import load_dotenv
 
 load_dotenv()
+
 
 def converter_to_ruble(amount, code):
     """Функция преобразует транзакции в рубли, учитывая курсы валют."""
