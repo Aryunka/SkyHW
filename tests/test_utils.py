@@ -1,113 +1,176 @@
-import unittest
-from unittest.mock import patch, mock_open
+import pytest
+import json
+from unittest.mock import Mock, patch, mock_open
 from scr.utils import loading_operation, transaction_amount_in_rub, transactions_in_rub
 
 
-class TestLoadingOperation(unittest.TestCase):
-
-    def test_loading_operation(self):
-        fake_json_content = """
-        [
-            {"transaction_id": 1, "amount": 100},
-            {"transaction_id": 2, "amount": 200}
-        ]
-        """
-
-        with patch("builtins.open", mock_open(read_data=fake_json_content)):
-            result = loading_operation()
-
-        self.assertEqual(result, [
-            {"transaction_id": 1, "amount": 100},
-            {"transaction_id": 2, "amount": 200}
-        ])
-
-    def test_file_not_found_error(self):
-        with patch("builtins.open", side_effect=FileNotFoundError):
-            result = loading_operation()
-
-        self.assertEqual(result, [])
-
-    def test_json_decode_error(self):
-        invalid_json_content = "{invalid_json}"
-
-        with patch("builtins.open", mock_open(read_data=invalid_json_content)):
-            result = loading_operation()
-
-        self.assertEqual(result, [])
-
-    def test_type_error(self):
-        with patch("json.load", side_effect=TypeError):
-            result = loading_operation()
-
-        self.assertEqual(result, [])
+expected_result = [
+    {
+        "id": 441945886,
+        "state": "EXECUTED",
+        "date": "2019-08-26T10:50:58.294041",
+        "operationAmount": {
+            "amount": "31957.58",
+            "currency": {
+                "name": "руб.",
+                "code": "RUB"
+            }
+        },
+        "description": "Перевод организации",
+        "from": "Maestro 1596837868705199",
+        "to": "Счет 64686473678894779589"
+    },
+    {
+        "id": 41428829,
+        "state": "EXECUTED",
+        "date": "2019-07-03T18:35:29.512364",
+        "operationAmount": {
+            "amount": "8221.37",
+            "currency": {
+                "name": "USD",
+                "code": "USD"
+            }
+        },
+        "description": "Перевод организации",
+        "from": "MasterCard 7158300734726758",
+        "to": "Счет 35383033474447895560"
+    }
+]
 
 
-class TestTransactionAmountInRub(unittest.TestCase):
-    def setUp(self):
-        self.operation = {
-            "operationAmount": {
-                "amount": 100,
-                "currency": {"code": "USD"}
+def test_loading_operation_success():
+    mock_data = json.dumps(expected_result)
+    with patch("builtins.open", mock_open(read_data=mock_data)):
+        result = loading_operation("data_file.json")
+        assert result == expected_result
+
+def test_loading_operation_json_decode_error():
+    mock_data = 'invalid json'
+    with patch("builtins.open", mock_open(read_data=mock_data)):
+        result = loading_operation("data_file.json")
+        assert result == []
+
+def test_loading_operation_type_error():
+    mock_data = '{"id": 1, "amount": 100}'
+    with patch("builtins.open", mock_open(read_data=mock_data)):
+        result = loading_operation("data_file.json")
+        assert result == []
+
+def test_loading_operation_file_not_found():
+    with patch("builtins.open", side_effect=FileNotFoundError):
+        result = loading_operation("data_file.json")
+        assert result == []
+
+def test_loading_operation_empty_file():
+    mock_data = ''
+    with patch("builtins.open", mock_open(read_data=mock_data)):
+        result = loading_operation("data_file.json")
+        assert result == []
+
+# Test transaction_amount_in_rub function
+def test_transaction_amount_in_rub_already_rub():
+    operation = {
+        "operationAmount": {
+            "amount": "1000.00",
+            "currency": {
+                "code": "RUB"
             }
         }
+    }
+    result = transaction_amount_in_rub(operation)
+    assert result == "1000.00"
 
-    @patch('scr.utils.converter_to_ruble')
-    def test_transaction_amount_in_rub(self, mock_converter_to_ruble):
-        mock_converter_to_ruble.return_value = '{"result": 7000}'
-        result = transaction_amount_in_rub(self.operation)
-        self.assertEqual(result, 7000)
-        mock_converter_to_ruble.assert_called_once_with(100, "USD")
+def test_transaction_amount_in_rub_conversion_success():
+    operation = {
+        "operationAmount": {
+            "amount": "100.00",
+            "currency": {
+                "code": "USD"
+            }
+        }
+    }
+    mock_conversion_result = '{"result": 7500.00}'
 
-    @patch('scr.utils.converter_to_ruble')
-    def test_transaction_amount_in_rub_rub(self, mock_converter_to_ruble):
-        self.operation['operationAmount']['currency']['code'] = 'RUB'
-        result = transaction_amount_in_rub(self.operation)
-        self.assertEqual(result, 100)
-        mock_converter_to_ruble.assert_not_called()
+    with patch("scr.external_api.converter_to_ruble", return_value=mock_conversion_result):
+        result = transaction_amount_in_rub(operation)
+        assert result == 7500.00
 
+def test_transaction_amount_in_rub_conversion_key_error():
+    operation = {
+        "operationAmount": {
+            "amount": "100.00",
+            "currency": {
+                "code": "USD"
+            }
+        }
+    }
+    mock_conversion_result = '{"error": "Invalid data"}'  # Simulated invalid conversion result
 
-class TestTransactionsInRub(unittest.TestCase):
-    def setUp(self):
-        # Создаем фиктивные данные операций
-        self.fake_operations = [
-            {
-                "operationAmount": {
-                    "amount": 100,
-                    "currency": {"code": "USD"}
-                }
-            },
-            {
-                "operationAmount": {
-                    "amount": 150,
-                    "currency": {"code": "EUR"}
+    with patch("scr.external_api.converter_to_ruble", return_value=mock_conversion_result):
+        result = transaction_amount_in_rub(operation)
+        assert result == "Произошла ошибка: 'result'."
+
+def test_transaction_amount_in_rub_conversion_type_error():
+    operation = {
+        "operationAmount": {
+            "amount": "100.00",
+            "currency": {
+                "code": "USD"
+            }
+        }
+    }
+    mock_conversion_result = "invalid json"  # Simulated invalid JSON
+
+    with patch("scr.external_api.converter_to_ruble", return_value=mock_conversion_result):
+        result = transaction_amount_in_rub(operation)
+        assert "Произошла ошибка:" in result
+
+# Test transactions_in_rub function
+def test_transactions_in_rub_success(capsys):
+    mock_operations = [
+        {
+            "operationAmount": {
+                "amount": "100.00",
+                "currency": {
+                    "code": "USD"
                 }
             }
-        ]
+        },
+        {
+            "operationAmount": {
+                "amount": "500.00",
+                "currency": {
+                    "code": "RUB"
+                }
+            }
+        }
+    ]
 
-    @patch('scr.utils.loading_operation')
-    @patch('scr.utils.transaction_amount_in_rub')
-    def test_transactions_in_rub_success(self, mock_transaction_amount_in_rub, mock_loading_operation):
-        mock_loading_operation.return_value = self.fake_operations
-        mock_transaction_amount_in_rub.side_effect = [7000, 12000]
+    with patch("scr.utils.loading_operation", return_value=mock_operations):
+        with patch("scr.utils.transaction_amount_in_rub", side_effect=["7500.00", "500.00"]):
+            transactions_in_rub()
+            captured = capsys.readouterr()
+            assert captured.out == "7500.00\n500.00\n"
+
+def test_transactions_in_rub_empty_list(capsys):
+    with patch("scr.utils.loading_operation", return_value=[]):
         transactions_in_rub()
-        mock_loading_operation.assert_called_once()
-        mock_transaction_amount_in_rub.assert_has_calls([
-            unittest.mock.call(self.fake_operations[0]),
-            unittest.mock.call(self.fake_operations[1])
-        ])
+        captured = capsys.readouterr()
+        assert captured.out == ""
 
-    @patch('scr.utils.loading_operation')
-    @patch('scr.utils.transaction_amount_in_rub')
-    def test_transactions_in_rub_failure(self, mock_transaction_amount_in_rub, mock_loading_operation):
-        mock_loading_operation.return_value = self.fake_operations
-        mock_transaction_amount_in_rub.side_effect = [None, 12000]
-        transactions_in_rub()
-        mock_loading_operation.assert_called_once()
-        mock_transaction_amount_in_rub.assert_has_calls([
-            unittest.mock.call(self.fake_operations[0]),
-            unittest.mock.call(self.fake_operations[1])
-        ])
-
-
-if __name__ == '__main__':
-    unittest.main()
+def test_transactions_in_rub_conversion_error(capsys):
+    mock_operations = [
+        {
+            "operationAmount": {
+                "amount": "100.00",
+                "currency": {
+                    "code": "USD"
+                }
+            }
+        }
+    ]
+    with patch("scr.utils.loading_operation", return_value=mock_operations):
+        with patch("scr.utils.transaction_amount_in_rub", return_value=None):
+            transactions_in_rub()
+            captured = capsys.readouterr()
+            assert captured.out == ""

@@ -4,13 +4,10 @@ import os
 from scr.external_api import converter_to_ruble
 
 
-def loading_operation():
+def loading_operation(data_file):
     """Функция читает JSON, преобразует в список словарей транзакций, возвращает пустой список при ошибке."""
-    current_dir = os.path.dirname(__file__)
-    project_dir = os.path.dirname(current_dir)
-    file_path = os.path.join(project_dir, "data", "operations.json")
     try:
-        with open(file_path) as f:
+        with open(data_file) as f:
             datas = json.load(f)
             return datas
     except json.JSONDecodeError:
@@ -36,7 +33,6 @@ def transaction_amount_in_rub(operation):
             return f"Произошла ошибка: {e}."
 
 
-
 def transactions_in_rub():
     """Функция выводит результат конвертации транзакций в рубль."""
     operations = loading_operation()
@@ -47,4 +43,6 @@ def transactions_in_rub():
 
 
 if __name__ == "__main__":
-    transactions_in_rub()
+    data_file = "../data/operations.json"
+    result = loading_operation(data_file)
+    print(result)
